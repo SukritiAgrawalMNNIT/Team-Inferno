@@ -1,1 +1,4 @@
-pygame-ce==2.5.8
+# Install ONE of the following (never both in the same venv):
+#   pip install pygame
+#   pip install pygame-ce
+# pygame-ce is recommended on very new Python versions (3.14+), where plain pygame may fail to build.
