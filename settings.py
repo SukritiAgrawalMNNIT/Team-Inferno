@@ -14,3 +14,10 @@ CLOAK_DARK = (110, 15, 30)
 CLOAK_GOLD = (240, 190, 60)
 CLOAK_SCALE = 0.9                 # make the cloak bigger or smaller
 CLOAK_OUTLINE = (40, 10, 20)
+
+BARRIER_WIDTH = 80
+BARRIER_SPACING = 320     # distance between one barrier and the next (pixels)
+GAP_MARGIN = 80           # the gap stays this far from the ceiling and ground
+POOL_SIZE = 15             # how many barriers exist in total (they are reused)
+BARRIER_COLOR = (90, 40, 140)
+BARRIER_EDGE = (200, 160, 255)
