@@ -78,6 +78,9 @@ class Game:
         self.score_manager.end_run()    # saves the high score if it is a new record
         self.game_over_screen.set_score(self.score_manager.score)
         self.state = "game_over"
+        self.game_over_screen.set_score(self.score_manager.score)
+        if hasattr(self.game_over_screen, "set_high_score"):
+            self.game_over_screen.set_high_score(self.score_manager.high_score)
 
     def current_speed(self):
         """Barrier speed, including the Time Stone slow-down."""
@@ -110,9 +113,6 @@ class Game:
                 self.player.thrust()
             elif event.key == pygame.K_ESCAPE:
                 self.state = "paused"
-            elif event.key == pygame.K_t:
-                # TEST KEY: pretend we collected the Time Stone (until Day 3)
-                self.power_up.activate()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.player.thrust()
 
@@ -143,6 +143,9 @@ class Game:
         self.player.update(dt)
         self.power_up.update(dt)
         self.spawner.update(dt, self.current_speed(), self.difficulty.get_gap())
+
+        if self.spawner.stone_collected(self.player.rect):
+            self.power_up.activate()
 
         # +1 point for every gap the Cloak got through
         passed = self.spawner.count_passed(self.player.rect)
@@ -180,7 +183,7 @@ class Game:
         self.draw_text(f"Gap size: {self.difficulty.get_gap()}", 20, 110)
         if self.power_up.active:
             self.draw_text(f"Time Stone: {self.power_up.timer:.1f}s", 20, 140)
-        self.draw_text("Space = flap   Esc = pause   T = test Time Stone",
+        self.draw_text("Space = flap   Esc = pause",
                        20, HEIGHT - 40)
 
     def draw(self):

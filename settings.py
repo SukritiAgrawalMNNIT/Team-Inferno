@@ -21,3 +21,8 @@ GAP_MARGIN = 80           # the gap stays this far from the ceiling and ground
 POOL_SIZE = 15             # how many barriers exist in total (they are reused)
 BARRIER_COLOR = (90, 40, 140)
 BARRIER_EDGE = (200, 160, 255)
+
+STONE_RADIUS = 16             # size of the Time Stone
+STONE_CHANCE = 0.25           # chance that a new barrier brings a stone (25%)
+STONE_COLOR = (80, 220, 120)  # green, like the real Time Stone
+STONE_EDGE = (200, 255, 215)  # light outline

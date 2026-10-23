@@ -1,18 +1,20 @@
+import random
 from barrier import Barrier
+from time_stone import TimeStone
 from settings import *
 
 
 class BarrierSpawner:
     def __init__(self):
-        # Make all the barriers once, at the start
         self.pool = []
         for _ in range(POOL_SIZE):
             self.pool.append(Barrier())
+        self.stone = TimeStone()      # only one Time Stone exists, and it is reused
 
     def reset(self):
-        """Start of a new run: put every barrier back in the pool."""
         for barrier in self.pool:
             barrier.active = False
+        self.stone.active = False
 
     def active_barriers(self):
         result = []
@@ -22,14 +24,15 @@ class BarrierSpawner:
         return result
 
     def spawn(self, gap):
-        """Take one unused barrier from the pool and send it in."""
         for barrier in self.pool:
             if not barrier.active:
                 barrier.spawn(gap)
+                # Sometimes bring a Time Stone, halfway between this barrier and the next
+                if not self.stone.active and random.random() < STONE_CHANCE:
+                    self.stone.spawn(WIDTH + BARRIER_SPACING // 2)
                 return
 
     def update(self, dt, speed, gap):
-        # 1. Is it time for a new barrier?
         active = self.active_barriers()
         if len(active) == 0:
             self.spawn(gap)
@@ -38,10 +41,10 @@ class BarrierSpawner:
             if newest_x <= WIDTH - BARRIER_SPACING:
                 self.spawn(gap)
 
-        # 2. Move all active barriers left
         for barrier in self.pool:
             if barrier.active:
                 barrier.update(dt, speed)
+        self.stone.update(dt, speed)     # the stone moves at the same speed as the barriers
 
     def hits_player(self, player_rect):
         for barrier in self.pool:
@@ -49,8 +52,14 @@ class BarrierSpawner:
                 return True
         return False
 
+    def stone_collected(self, player_rect):
+        """True once, at the moment the Cloak grabs the Time Stone."""
+        if self.stone.collected(player_rect):
+            self.stone.active = False
+            return True
+        return False
+
     def count_passed(self, player_rect):
-        """How many barriers did the Cloak just get past? (each counts once)"""
         count = 0
         for barrier in self.pool:
             if barrier.active and not barrier.passed:
@@ -63,3 +72,4 @@ class BarrierSpawner:
         for barrier in self.pool:
             if barrier.active:
                 barrier.draw(screen)
+        self.stone.draw(screen)
