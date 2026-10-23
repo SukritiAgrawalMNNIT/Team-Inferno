@@ -4,12 +4,13 @@ from player import Player
 from score_manager import ScoreManager
 from difficulty_manager import DifficultyManager
 from power_up import PowerUp
+from barrier_spawner import BarrierSpawner
 from screens.main_menu import MainMenu
 from screens.game_over import GameOverScreen
 from screens.pause_screen import PauseScreen
 
 # Set to True to print every action the screens send (helps if a button does nothing)
-DEBUG = True
+DEBUG = False
 
 
 def ask(screen_obj, event):
@@ -53,6 +54,7 @@ class Game:
         self.score_manager = ScoreManager()
         self.difficulty = DifficultyManager()
         self.power_up = PowerUp()
+        self.spawner = BarrierSpawner()
 
         # Screens
         self.menu = MainMenu(self.screen)
@@ -68,6 +70,7 @@ class Game:
         self.score_manager.reset()
         self.difficulty.reset()
         self.power_up.reset()
+        self.spawner.reset()
         self.player.reset()
         self.state = "playing"
 
@@ -75,6 +78,10 @@ class Game:
         self.score_manager.end_run()    # saves the high score if it is a new record
         self.game_over_screen.set_score(self.score_manager.score)
         self.state = "game_over"
+
+    def current_speed(self):
+        """Barrier speed, including the Time Stone slow-down."""
+        return self.difficulty.get_speed() * self.power_up.speed_multiplier()
 
     # ---------- events ----------
     def handle_events(self):
@@ -103,12 +110,8 @@ class Game:
                 self.player.thrust()
             elif event.key == pygame.K_ESCAPE:
                 self.state = "paused"
-            elif event.key == pygame.K_o:
-                # TEST KEY: pretend we passed a gap (until barriers exist)
-                self.score_manager.add_point()
-                self.difficulty.update(self.score_manager.score)
             elif event.key == pygame.K_t:
-                # TEST KEY: pretend we collected the Time Stone
+                # TEST KEY: pretend we collected the Time Stone (until Day 3)
                 self.power_up.activate()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.player.thrust()
@@ -136,14 +139,26 @@ class Game:
             self.start_run()    # single key restart (rule B3)
 
     # ---------- update ----------
+    def update_playing(self, dt):
+        self.player.update(dt)
+        self.power_up.update(dt)
+        self.spawner.update(dt, self.current_speed(), self.difficulty.get_gap())
+
+        # +1 point for every gap the Cloak got through
+        passed = self.spawner.count_passed(self.player.rect)
+        for _ in range(passed):
+            self.score_manager.add_point()
+            self.difficulty.update(self.score_manager.score)
+
+        # Game over if the Cloak hits the floor, the ceiling or a barrier
+        if self.player.hits_bounds() or self.spawner.hits_player(self.player.rect):
+            self.end_run()
+
     def update(self, dt):
         if self.state == "menu":
             safe_update(self.menu, dt)
         elif self.state == "playing":
-            self.player.update(dt)
-            self.power_up.update(dt)
-            if self.player.hits_bounds():
-                self.end_run()
+            self.update_playing(dt)
         elif self.state == "paused":
             safe_update(self.pause_screen, dt)
         elif self.state == "game_over":
@@ -156,16 +171,16 @@ class Game:
 
     def draw_world(self):
         self.screen.fill(BG_COLOR)
+        self.spawner.draw(self.screen)      # barriers first, so the Cloak is in front
         self.player.draw(self.screen)
 
-        speed = self.difficulty.get_speed() * self.power_up.speed_multiplier()
         self.draw_text(f"Score: {self.score_manager.score}", 20, 20)
         self.draw_text(f"High score: {self.score_manager.high_score}", 20, 50)
-        self.draw_text(f"Barrier speed: {speed:.0f}", 20, 80)
+        self.draw_text(f"Barrier speed: {self.current_speed():.0f}", 20, 80)
         self.draw_text(f"Gap size: {self.difficulty.get_gap()}", 20, 110)
         if self.power_up.active:
             self.draw_text(f"Time Stone: {self.power_up.timer:.1f}s", 20, 140)
-        self.draw_text("O = test point   T = test Time Stone   Esc = pause",
+        self.draw_text("Space = flap   Esc = pause   T = test Time Stone",
                        20, HEIGHT - 40)
 
     def draw(self):
