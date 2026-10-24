@@ -31,7 +31,6 @@ class Barrier:
         self.passed = False
         self.active = True
         self.update_rects()
-
     def update(self, dt, speed):
         self.x -= speed * dt
         self.update_rects()

@@ -57,9 +57,15 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Cloak of Chaos - Rift Runner")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, 30)
-        self.big_font = pygame.font.SysFont(None, 64)
-        self.small_font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.Font(
+            "assets/fonts/Cinzel-Regular.ttf", 20
+        )
+        self.big_font = pygame.font.Font(
+            "assets/fonts/Cinzel-Regular.ttf", 42
+        )
+        self.small_font = pygame.font.Font(
+            "assets/fonts/Cinzel-Regular.ttf", 15
+        )
 
         # Game objects
         self.player = Player()
@@ -208,8 +214,9 @@ class Game:
             safe_update(self.game_over_screen, dt)
 
     # ---------- drawing helpers ----------
-    def draw_text(self, text, x, y):
-        image = self.font.render(text, True, WHITE)
+
+    def draw_text(self, text, x, y, color=(195, 175, 215)):
+        image = self.font.render(text, True, color)
         self.screen.blit(image, (x, y))
 
     def draw_center(self, text, y, font, color):
@@ -230,64 +237,153 @@ class Game:
             self.screen.blit(image, (popup["x"], popup["y"]))
 
     # ---------- drawing ----------
+
     def draw_world(self):
         self.screen.fill(BG_COLOR)
-        self.spawner.draw(self.screen)      # barriers first, so the Cloak is in front
+        self.spawner.draw(self.screen)
         self.player.draw(self.screen)
         self.draw_popups()
 
-        # Big score in the middle at the top
-        self.draw_center(str(self.score_manager.score), 45, self.big_font, WHITE)
-        if self.score_manager.new_record:
-            pulse = 0.6 + 0.4 * math.sin(pygame.time.get_ticks() / 150)
-            colour = (int(GOLD[0] * pulse), int(GOLD[1] * pulse), int(GOLD[2] * pulse))
-            self.draw_center("NEW RECORD!", 95, self.font, colour)
+        # Main score â€” antique gold
+        self.draw_center(
+            str(self.score_manager.score),
+            45,
+            self.big_font,
+            (232, 195, 115)
+        )
 
-        # Details at the top-left
-        self.draw_text(f"High score: {self.score_manager.high_score}", 20, 20)
-        self.draw_text(f"Barrier speed: {self.current_speed():.0f}", 20, 50)
-        self.draw_text(f"Gap size: {self.difficulty.get_gap()}", 20, 80)
+        if self.score_manager.new_record:
+            pulse = 0.75 + 0.25 * math.sin(
+                pygame.time.get_ticks() / 150
+            )
+            colour = (
+                int(232 * pulse),
+                int(195 * pulse),
+                int(115 * pulse)
+            )
+            self.draw_center(
+                "NEW RECORD!",
+                88,
+                self.font,
+                colour
+            )
+
+        # Gameplay information in muted lavender
+        lavender = (195, 175, 215)
+        gold = (232, 195, 115)
+
+        self.draw_text(
+            f"HIGH SCORE: {self.score_manager.high_score}",
+            20, 20, color=gold
+        )
+        self.draw_text(
+            f"BARRIER SPEED: {self.current_speed():.0f}",
+            20, 50, color=lavender
+        )
+        self.draw_text(
+            f"GAP SIZE: {self.difficulty.get_gap()}",
+            20, 80, color=lavender
+        )
+
         if self.power_up.active:
-            self.draw_text(f"Time Stone: {self.power_up.timer:.1f}s", 20, 110)
-        self.draw_text("Space = flap   Esc = pause   F1 = scoring panel", 20, HEIGHT - 40)
+            self.draw_text(
+                f"TIME STONE: {self.power_up.timer:.1f}s",
+                20, 110, color=gold
+            )
+
+        self.draw_center(
+            "SPACE  â€¢  FLAP       ESC  â€¢  PAUSE       F1  â€¢  DETAILS",
+            HEIGHT - 25,
+            self.small_font,
+            (155, 130, 180)
+        )
+
 
     def draw_game_over_info(self):
-        """Extra scoring information at the bottom of the game-over screen."""
-        self.draw_panel(WIDTH // 2 - 260, HEIGHT - 110, 520, 95)
-        self.draw_center(f"Score: {self.final_score}     High score: {self.final_best}",
-                         HEIGHT - 82, self.font, WHITE)
+        """Show only the high score and record message."""
+        high_score = self.final_best
+
+        # High score in Cinzel with antique gold
+        high_score_font = pygame.font.Font(
+            "assets/fonts/Cinzel-Regular.ttf", 24
+        )
+        message_font = pygame.font.Font(
+            "assets/fonts/Cinzel-Regular.ttf", 17
+        )
+
+        self.draw_center(
+            f"HIGH SCORE: {high_score}",
+            HEIGHT - 85,
+            high_score_font,
+            (232, 195, 115)
+        )
+
         if self.final_record and self.final_saved:
-            self.draw_center("NEW RECORD! Saved to highscore.json", HEIGHT - 45, self.font, GOLD)
+            message = "A NEW RECORD HAS BEEN FORGED"
+            color = (232, 195, 115)
         elif self.final_record:
-            self.draw_center("New record, but the file could not be saved",
-                             HEIGHT - 45, self.font, RED_WARN)
+            message = "NEW RECORD, BUT SAVE FAILED"
+            color = (210, 105, 105)
         else:
-            self.draw_center("Beat the high score to set a new record",
-                             HEIGHT - 45, self.font, GREEN_OK)
+            message = "SURPASS YOUR RECORD TO CLAIM GLORY"
+            color = (190, 165, 210)
+
+        self.draw_center(
+            message,
+            HEIGHT - 45,
+            message_font,
+            color
+        )
+
+
 
     def draw_debug(self):
-        """Press F1: shows the numbers the scoring code is working with."""
         stone = getattr(self.spawner, "stone", None)
+
         lines = [
-            f"state: {self.state}",
-            f"score: {self.score_manager.score}",
-            f"high score: {self.score_manager.high_score}",
-            f"new record: {self.score_manager.new_record}",
-            f"last save ok: {self.score_manager.last_save_ok}",
-            f"barriers on screen: {len(self.spawner.active_barriers())}",
-            f"time stone on screen: {stone.active if stone else 'n/a'}",
+            ("RIFT DIAGNOSTICS", (232, 195, 115)),
+            (f"Score: {self.score_manager.score}", (225, 210, 240)),
+            (f"High score: {self.score_manager.high_score}", (232, 195, 115)),
+            (f"New record: {self.score_manager.new_record}", (195, 175, 215)),
+            (f"Save successful: {self.score_manager.last_save_ok}", (195, 175, 215)),
+            (f"Barriers: {len(self.spawner.active_barriers())}", (195, 175, 215)),
+            (f"Time Stone active: {stone.active if stone else 'N/A'}", (195, 175, 215)),
         ]
-        height = len(lines) * 22 + 14
-        self.draw_panel(WIDTH - 290, 10, 280, height, 180)
-        for i, line in enumerate(lines):
-            image = self.small_font.render(line, True, GREEN_OK)
-            self.screen.blit(image, (WIDTH - 280, 18 + i * 22))
+
+        panel_width = 330
+        row_height = 25
+        panel_height = len(lines) * row_height + 24
+        x = WIDTH - panel_width - 15
+        y = 15
+
+        # Translucent dark-purple panel
+        panel = pygame.Surface(
+            (panel_width, panel_height),
+            pygame.SRCALPHA
+        )
+        panel.fill((15, 9, 27, 225))
+        self.screen.blit(panel, (x, y))
+
+        # Antique-gold border
+        pygame.draw.rect(
+            self.screen,
+            (125, 91, 145),
+            (x, y, panel_width, panel_height),
+            1,
+            border_radius=5
+        )
+
+        for i, (line, color) in enumerate(lines):
+            image = self.small_font.render(line, True, color)
+            self.screen.blit(
+                image,
+                (x + 14, y + 12 + i * row_height)
+            )
+
 
     def draw(self):
         if self.state == "menu":
             self.menu.draw()
-            self.draw_center(f"High score: {self.score_manager.high_score}", HEIGHT - 30,
-                             self.font, GOLD)
         elif self.state == "playing":
             self.draw_world()
         elif self.state == "paused":

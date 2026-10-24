@@ -12,34 +12,47 @@ class ScreenManager:
     def __init__(self):
         pygame.init()
 
-        self.width = 900
-        self.height = 600
+        # Fullscreen display using monitor dimensions
+        info = pygame.display.Info()
+        self.width = info.current_w
+        self.height = info.current_h
 
         self.screen = pygame.display.set_mode(
-            (self.width, self.height)
+            (self.width, self.height),
+            pygame.FULLSCREEN
         )
-        pygame.display.set_caption("Cloak of Chaos: Rift Runner")
+
+        self.width, self.height = self.screen.get_size()
+
+        pygame.display.set_caption(
+            "Cloak of Chaos: Rift Runner"
+        )
 
         self.clock = pygame.time.Clock()
         self.running = True
-
-        # Current screen
         self.current_screen = "menu"
 
+        # High score storage
+        from high_score_storage import HighScoreStorage
+
+        self.high_score_storage = HighScoreStorage()
+        self.high_score = self.high_score_storage.load()
+
         # Screen objects
-        self.menu = MainMenu(self.screen)
+        self.menu = MainMenu(self.screen, self.high_score)
         self.pause_screen = PauseScreen(self.screen)
         self.game_over_screen = GameOverScreen(self.screen)
 
         # Fonts
         self.font = pygame.font.Font(
-            "assets/fonts/Cinzel-Regular.ttf", 32)
+            "assets/fonts/Cinzel-Regular.ttf", 32
+        )
         self.hud_font = pygame.font.Font(
-            "assets/fonts/Cinzel-Regular.ttf", 22)
+            "assets/fonts/Cinzel-Regular.ttf", 22
+        )
         self.small_font = pygame.font.Font(None, 24)
-        # Floating magical particles
-        import random
 
+        # Floating magical particles
         self.particles = []
 
         for _ in range(50):
@@ -47,9 +60,9 @@ class ScreenManager:
                 random.randint(0, self.width),
                 random.randint(0, self.height),
                 random.uniform(0.4, 1.2),
-                random.randint(1, 3)
-                ])
-    
+                random.randint(1, 3),
+            ])
+
     def draw_cloak(self, x, y):
         # Soft purple glow
         pygame.draw.circle(
@@ -57,18 +70,20 @@ class ScreenManager:
         )
 
         # Flowing cloak
+        cloak_points = [
+            (x - 9, y - 2),
+            (x + 9, y - 2),
+            (x + 14, y + 17),
+            (x + 5, y + 14),
+            (x, y + 22),
+            (x - 7, y + 14),
+            (x - 15, y + 17),
+        ]
+
         pygame.draw.polygon(
             self.screen,
             (25, 15, 36),
-            [
-                (x - 9, y - 2),
-                (x + 9, y - 2),
-                (x + 14, y + 17),
-                (x + 5, y + 14),
-                (x, y + 22),
-                (x - 7, y + 14),
-                (x - 15, y + 17),
-            ],
+            cloak_points,
         )
 
         # Thin purple outline
@@ -76,26 +91,24 @@ class ScreenManager:
             self.screen,
             (115, 45, 155),
             True,
-            [
-                (x - 9, y - 2),
-                (x + 9, y - 2),
-                (x + 14, y + 17),
-                (x + 5, y + 14),
-                (x, y + 22),
-                (x - 7, y + 14),
-                (x - 15, y + 17),
-            ],
+            cloak_points,
             1,
         )
 
         # Hood
         pygame.draw.circle(
-            self.screen, (28, 17, 40), (x, y - 7), 12
+            self.screen,
+            (28, 17, 40),
+            (x, y - 7),
+            12,
         )
 
-        # Hood outline
         pygame.draw.circle(
-            self.screen, (125, 55, 165), (x, y - 7), 12, 1
+            self.screen,
+            (125, 55, 165),
+            (x, y - 7),
+            12,
+            1,
         )
 
         # Dark face opening
@@ -105,7 +118,7 @@ class ScreenManager:
             (x + 1, y - 13, 9, 12),
         )
 
-        # Single glowing violet eye
+        # Glowing violet eye
         pygame.draw.circle(
             self.screen,
             (210, 125, 255),
@@ -121,7 +134,9 @@ class ScreenManager:
         cy = self.height // 2
 
         # Animated purple portal
-        pulse = math.sin(pygame.time.get_ticks() * 0.002)
+        pulse = math.sin(
+            pygame.time.get_ticks() * 0.002
+        )
 
         pygame.draw.circle(
             self.screen,
@@ -145,7 +160,8 @@ class ScreenManager:
             (cx, cy),
             3,
         )
-        # Floating magical particles
+
+        # Floating purple and gold particles
         for particle in self.particles:
             x, y, speed, radius = particle
 
@@ -153,21 +169,29 @@ class ScreenManager:
 
             if particle[1] < 0:
                 particle[1] = self.height
-                particle[0] = random.randint(0, self.width)
+                particle[0] = random.randint(
+                    0, self.width
+                )
 
             pygame.draw.circle(
                 self.screen,
                 (135, 75, 175),
-                (int(particle[0]), int(particle[1])),radius)
+                (int(particle[0]), int(particle[1])),
+                radius,
+            )
+
         # Temporary gameplay message
         message = self.font.render(
             "THE RIFT AWAITS",
             True,
             (225, 205, 240),
         )
+
         self.screen.blit(
             message,
-            message.get_rect(center=(cx, cy - 15)),
+            message.get_rect(
+                center=(cx, cy - 15)
+            ),
         )
 
         hint = self.small_font.render(
@@ -175,9 +199,12 @@ class ScreenManager:
             True,
             (155, 120, 175),
         )
+
         self.screen.blit(
             hint,
-            hint.get_rect(center=(cx, cy + 25)),
+            hint.get_rect(
+                center=(cx, cy + 25)
+            ),
         )
 
         # Temporary score HUD
@@ -206,7 +233,9 @@ class ScreenManager:
 
         self.screen.blit(
             score_text,
-            score_text.get_rect(center=hud_rect.center),
+            score_text.get_rect(
+                center=hud_rect.center
+            ),
         )
 
         # Pause hint
@@ -219,20 +248,37 @@ class ScreenManager:
         self.screen.blit(
             pause_hint,
             pause_hint.get_rect(
-                bottomright=(self.width - 20, self.height - 18)
+                bottomright=(
+                    self.width - 20,
+                    self.height - 18,
+                )
             ),
         )
-           # Draw the Cloak character
+
+        # Cloak character
         self.draw_cloak(260, self.height // 2)
 
     def run(self):
         while self.running:
-
             # Handle events
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
                     self.running = False
+                    continue
+
+                # F11 toggles fullscreen/windowed mode
+                if (
+                    event.type == pygame.KEYDOWN
+                    and event.key == pygame.K_F11
+                ):
+                    if pygame.display.get_active():
+                        if pygame.display.get_surface():
+                            pygame.display.toggle_fullscreen()
+
+                    self.width, self.height = (
+                        self.screen.get_size()
+                    )
                     continue
 
                 if self.current_screen == "menu":
@@ -279,7 +325,6 @@ class ScreenManager:
                 self.draw_game()
 
             elif self.current_screen == "pause":
-                # Draw gameplay behind the pause overlay
                 self.draw_game()
                 self.pause_screen.draw()
 

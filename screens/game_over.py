@@ -108,23 +108,27 @@ class GameOverScreen:
             self.menu_button, "RETURN TO REALM", "menu"
         )
 
+
     def draw_button(self, rect, text, button_name):
         hovered = self.hovered_button == button_name
 
         if hovered:
-            fill = (60, 30, 80)
-            border = (205, 125, 240)
-            text_color = (255, 240, 255)
+            fill = (38, 25, 48)
+            border = (205, 170, 105)
+            text_color = (255, 235, 195)
+            border_width = 2
         else:
-            fill = (23, 15, 34)
-            border = (105, 65, 135)
+            fill = (18, 12, 28)
+            border = (105, 75, 125)
             text_color = (215, 195, 230)
+            border_width = 1
 
         pygame.draw.rect(
             self.screen, fill, rect, border_radius=5
         )
         pygame.draw.rect(
-            self.screen, border, rect, 2, border_radius=5
+            self.screen, border, rect,
+            border_width, border_radius=5
         )
 
         label = self.button_font.render(
@@ -133,6 +137,7 @@ class GameOverScreen:
         self.screen.blit(
             label, label.get_rect(center=rect.center)
         )
+
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
