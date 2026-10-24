@@ -1,30 +1,26 @@
+
 import math
 import pygame
 from settings import *
 from player import Player
 from score_manager import ScoreManager
 from difficulty_manager import DifficultyManager
-from power_up import PowerUp
+from power_up import TimeStoneEffect
 from barrier_spawner import BarrierSpawner
 from screens.main_menu import MainMenu
 from screens.game_over import GameOverScreen
 from screens.pause_screen import PauseScreen
-from player import Player
-from obstacle import Obstacle
-from settings import *
 
-# Set to True to print every action the screens send (helps if a button does nothing)
 DEBUG = False
 
 WHITE = (255, 255, 255)
 GOLD = (240, 190, 60)
 RED_WARN = (255, 100, 100)
 GREEN_OK = (130, 225, 150)
-POPUP_TIME = 0.8          # seconds a "+1" stays on screen
+POPUP_TIME = 0.8
 
 
 def ask(screen_obj, event):
-    """Send an event to a screen. Returns its action as lowercase text, or "" if none."""
     action = screen_obj.handle_event(event)
     if action is None or action is False:
         return ""
@@ -35,15 +31,10 @@ def ask(screen_obj, event):
 
 
 def has(text, *words):
-    """True if any of the words appears in the action text."""
-    for word in words:
-        if word in text:
-            return True
-    return False
+    return any(word in text for word in words)
 
 
 def safe_update(screen_obj, dt):
-    """Call update(dt) if the screen has it."""
     if hasattr(screen_obj, "update"):
         try:
             screen_obj.update(dt)
@@ -57,37 +48,28 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Cloak of Chaos - Rift Runner")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(
-            "assets/fonts/Cinzel-Regular.ttf", 20
-        )
-        self.big_font = pygame.font.Font(
-            "assets/fonts/Cinzel-Regular.ttf", 42
-        )
-        self.small_font = pygame.font.Font(
-            "assets/fonts/Cinzel-Regular.ttf", 15
-        )
 
-        # Game objects
+        self.font = pygame.font.Font("assets/fonts/Cinzel-Regular.ttf", 20)
+        self.big_font = pygame.font.Font("assets/fonts/Cinzel-Regular.ttf", 42)
+        self.small_font = pygame.font.Font("assets/fonts/Cinzel-Regular.ttf", 15)
+
         self.player = Player()
         self.score_manager = ScoreManager()
         self.difficulty = DifficultyManager()
-        self.power_up = PowerUp()
+        self.power_up = TimeStoneEffect()
         self.spawner = BarrierSpawner()
 
-        # Screens
         self.menu = MainMenu(self.screen)
         self.game_over_screen = GameOverScreen(self.screen)
         self.pause_screen = PauseScreen(self.screen)
 
-        # Things shown on screen to make the scoring visible
-        self.popups = []                  # floating "+1" texts
-        self.show_debug = False           # F1 toggles the scoring panel
-        self.final_score = 0              # result of the last run
+        self.popups = []
+        self.show_debug = False
+        self.final_score = 0
         self.final_best = self.score_manager.high_score
         self.final_record = False
         self.final_saved = None
 
-        # state is one of: "menu", "playing", "paused", "game_over"
         self.state = "menu"
         self.running = True
 
@@ -102,19 +84,21 @@ class Game:
         self.state = "playing"
 
     def end_run(self):
-        is_record = self.score_manager.end_run()      # saves the high score if it is a new record
+        is_record = self.score_manager.end_run()
         self.final_score = self.score_manager.score
         self.final_best = self.score_manager.high_score
         self.final_record = is_record
         self.final_saved = self.score_manager.last_save_ok
+
         self.game_over_screen.set_score(self.final_score)
         if hasattr(self.game_over_screen, "set_high_score"):
             self.game_over_screen.set_high_score(self.final_best)
+
         self.state = "game_over"
 
     def current_speed(self):
         """Barrier speed, including the Time Stone slow-down."""
-        return self.difficulty.get_speed() * self.power_up.speed_multiplier()
+        return self.difficulty.speed * self.power_up.multiplier
 
     # ---------- events ----------
     def handle_events(self):
@@ -168,38 +152,45 @@ class Game:
         elif has(action, "quit", "exit"):
             self.running = False
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            self.start_run()    # single key restart (rule B3)
+            self.start_run()
 
-    # ---------- floating "+1" texts ----------
+    # ---------- floating score popups ----------
     def add_popup(self, text, x, y):
         self.popups.append({"text": text, "x": x, "y": y, "age": 0.0})
 
     def update_popups(self, dt):
         for popup in self.popups:
-            popup["age"] += dt          # gets older
-            popup["y"] -= 60 * dt       # floats upward
+            popup["age"] += dt
+            popup["y"] -= 60 * dt
         self.popups = [p for p in self.popups if p["age"] < POPUP_TIME]
 
     # ---------- update ----------
     def update_playing(self, dt):
         self.player.update(dt)
         self.power_up.update(dt)
-        self.spawner.update(dt, self.current_speed(), self.difficulty.get_gap())
 
-        # Collecting the Time Stone slows the barriers
+        self.spawner.update(
+            dt,
+            self.current_speed(),
+            self.difficulty.gap_size
+        )
+
+        # Collecting the Time Stone activates slow motion.
         if self.spawner.stone_collected(self.player.rect):
             self.power_up.activate()
 
-        # +1 point for every gap the Cloak got through
         passed = self.spawner.count_passed(self.player.rect)
         for _ in range(passed):
             self.score_manager.add_point()
-            self.difficulty.update(self.score_manager.score)
-            self.add_popup("+1", self.player.rect.right + 10, self.player.rect.top - 10)
+            self.difficulty.on_score(self.score_manager.score)
+            self.add_popup(
+                "+1",
+                self.player.rect.right + 10,
+                self.player.rect.top - 10
+            )
 
         self.update_popups(dt)
 
-        # Game over if the Cloak hits the floor, the ceiling or a barrier
         if self.player.hits_bounds() or self.spawner.hits_player(self.player.rect):
             self.end_run()
 
@@ -214,7 +205,6 @@ class Game:
             safe_update(self.game_over_screen, dt)
 
     # ---------- drawing helpers ----------
-
     def draw_text(self, text, x, y, color=(195, 175, 215)):
         image = self.font.render(text, True, color)
         self.screen.blit(image, (x, y))
@@ -224,27 +214,24 @@ class Game:
         self.screen.blit(image, image.get_rect(center=(WIDTH // 2, y)))
 
     def draw_panel(self, x, y, w, h, alpha=150):
-        """A dark see-through box so text stays readable."""
         panel = pygame.Surface((w, h), pygame.SRCALPHA)
         panel.fill((0, 0, 0, alpha))
         self.screen.blit(panel, (x, y))
 
     def draw_popups(self):
         for popup in self.popups:
-            fade = 1 - popup["age"] / POPUP_TIME      # 1 = clear, 0 = invisible
+            fade = 1 - popup["age"] / POPUP_TIME
             image = self.font.render(popup["text"], True, GOLD)
             image.set_alpha(int(255 * fade))
             self.screen.blit(image, (popup["x"], popup["y"]))
 
     # ---------- drawing ----------
-
     def draw_world(self):
         self.screen.fill(BG_COLOR)
         self.spawner.draw(self.screen)
         self.player.draw(self.screen)
         self.draw_popups()
 
-        # Main score â€” antique gold
         self.draw_center(
             str(self.score_manager.score),
             45,
@@ -261,14 +248,8 @@ class Game:
                 int(195 * pulse),
                 int(115 * pulse)
             )
-            self.draw_center(
-                "NEW RECORD!",
-                88,
-                self.font,
-                colour
-            )
+            self.draw_center("NEW RECORD!", 88, self.font, colour)
 
-        # Gameplay information in muted lavender
         lavender = (195, 175, 215)
         gold = (232, 195, 115)
 
@@ -281,29 +262,24 @@ class Game:
             20, 50, color=lavender
         )
         self.draw_text(
-            f"GAP SIZE: {self.difficulty.get_gap()}",
+            f"GAP SIZE: {self.difficulty.gap_size}",
             20, 80, color=lavender
         )
 
         if self.power_up.active:
             self.draw_text(
-                f"TIME STONE: {self.power_up.timer:.1f}s",
+                f"TIME STONE: {self.power_up.time_left:.1f}s",
                 20, 110, color=gold
             )
 
         self.draw_center(
-            "SPACE  â€¢  FLAP       ESC  â€¢  PAUSE       F1  â€¢  DETAILS",
+            "SPACE  •  FLAP       ESC  •  PAUSE       F1  •  DETAILS",
             HEIGHT - 25,
             self.small_font,
             (155, 130, 180)
         )
 
-
     def draw_game_over_info(self):
-        """Show only the high score and record message."""
-        high_score = self.final_best
-
-        # High score in Cinzel with antique gold
         high_score_font = pygame.font.Font(
             "assets/fonts/Cinzel-Regular.ttf", 24
         )
@@ -312,7 +288,7 @@ class Game:
         )
 
         self.draw_center(
-            f"HIGH SCORE: {high_score}",
+            f"HIGH SCORE: {self.final_best}",
             HEIGHT - 85,
             high_score_font,
             (232, 195, 115)
@@ -328,14 +304,7 @@ class Game:
             message = "SURPASS YOUR RECORD TO CLAIM GLORY"
             color = (190, 165, 210)
 
-        self.draw_center(
-            message,
-            HEIGHT - 45,
-            message_font,
-            color
-        )
-
-
+        self.draw_center(message, HEIGHT - 45, message_font, color)
 
     def draw_debug(self):
         stone = getattr(self.spawner, "stone", None)
@@ -356,15 +325,10 @@ class Game:
         x = WIDTH - panel_width - 15
         y = 15
 
-        # Translucent dark-purple panel
-        panel = pygame.Surface(
-            (panel_width, panel_height),
-            pygame.SRCALPHA
-        )
+        panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
         panel.fill((15, 9, 27, 225))
         self.screen.blit(panel, (x, y))
 
-        # Antique-gold border
         pygame.draw.rect(
             self.screen,
             (125, 91, 145),
@@ -375,11 +339,7 @@ class Game:
 
         for i, (line, color) in enumerate(lines):
             image = self.small_font.render(line, True, color)
-            self.screen.blit(
-                image,
-                (x + 14, y + 12 + i * row_height)
-            )
-
+            self.screen.blit(image, (x + 14, y + 12 + i * row_height))
 
     def draw(self):
         if self.state == "menu":
@@ -387,14 +347,16 @@ class Game:
         elif self.state == "playing":
             self.draw_world()
         elif self.state == "paused":
-            self.draw_world()               # the game stays visible behind the pause screen
+            self.draw_world()
             self.pause_screen.draw()
         elif self.state == "game_over":
             self.draw_world()
             self.game_over_screen.draw()
             self.draw_game_over_info()
+
         if self.show_debug:
             self.draw_debug()
+
         pygame.display.flip()
 
     # ---------- main loop ----------
