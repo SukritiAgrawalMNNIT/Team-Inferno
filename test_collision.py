@@ -110,3 +110,24 @@ def test_barrier_ahead_is_not_counted():
     b = s.pool[0]
     b.x, b.active, b.passed = 400.0, True, False
     assert s.count_passed(pygame.Rect(200, 250, 40, 40)) == 0
+
+# ---------- Gaps must be reachable (Day 4) ----------
+def test_next_gap_stays_close_to_the_previous_one():
+    b = Barrier()
+    for _ in range(200):
+        b.spawn(150, prev_gap_y=300, max_shift=100)
+        assert abs(b.gap_y - 300) <= 100
+        assert b.gap_y >= GAP_MARGIN
+        assert b.gap_y + 150 <= HEIGHT - GAP_MARGIN
+
+
+def test_consecutive_gaps_are_reachable():
+    s = BarrierSpawner()
+    last = None
+    for _ in range(300):
+        s.pool[0].active = False            # free the barrier so the spawner can reuse it
+        s.spawn(150, 500)                   # gap 150, barrier speed 500
+        gap_y = s.pool[0].gap_y
+        if last is not None:
+            assert abs(gap_y - last) <= CLIMB_RATE * BARRIER_SPACING / 500 + 1
+        last = gap_y
