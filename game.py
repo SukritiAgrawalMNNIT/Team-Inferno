@@ -9,6 +9,9 @@ from barrier_spawner import BarrierSpawner
 from screens.main_menu import MainMenu
 from screens.game_over import GameOverScreen
 from screens.pause_screen import PauseScreen
+from player import Player
+from obstacle import Obstacle
+from settings import *
 
 # Set to True to print every action the screens send (helps if a button does nothing)
 DEBUG = False
