@@ -1,36 +1,27 @@
-# Numbers you can tune
-START_SPEED = 250       # how fast barriers move at the start (pixels per second)
-MAX_SPEED = 500         # barriers never go faster than this
-START_GAP = 200         # size of the gap at the start (pixels)
-MIN_GAP = 120           # the gap never gets smaller than this
-SPEED_INCREASE = 8      # speed gained for every point scored
-GAP_DECREASE = 3        # gap lost for every point scored
+BASE_SPEED = 180
+MAX_SPEED = 420
+BASE_GAP = 180
+MIN_GAP = 120
+POINTS_PER_LEVEL = 5
+SPEED_PER_LEVEL = 15
+GAP_SHRINK_PER_LEVEL = 6
 
 
 class DifficultyManager:
     def __init__(self):
-        self.speed = START_SPEED
-        self.gap = START_GAP
-
-    def update(self, score):
-        """Call this whenever the score changes. Makes the game harder."""
-        new_speed = START_SPEED + score * SPEED_INCREASE
-        if new_speed > MAX_SPEED:
-            new_speed = MAX_SPEED
-        self.speed = new_speed
-
-        new_gap = START_GAP - score * GAP_DECREASE
-        if new_gap < MIN_GAP:
-            new_gap = MIN_GAP
-        self.gap = new_gap
-
-    def get_speed(self):
-        return self.speed
-
-    def get_gap(self):
-        return self.gap
+        self.level = 0
 
     def reset(self):
-        """Go back to the easy settings for a new run."""
-        self.speed = START_SPEED
-        self.gap = START_GAP
+        self.level = 0
+
+    def on_score(self, score):
+        """Call whenever the score changes."""
+        self.level = score // POINTS_PER_LEVEL
+
+    @property
+    def speed(self):
+        return min(MAX_SPEED, BASE_SPEED + self.level * SPEED_PER_LEVEL)
+
+    @property
+    def gap_size(self):
+        return max(MIN_GAP, BASE_GAP - self.level * GAP_SHRINK_PER_LEVEL)
