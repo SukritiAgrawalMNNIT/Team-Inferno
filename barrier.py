@@ -15,12 +15,19 @@ class Barrier:
         self.top_rect = pygame.Rect(0, 0, 0, 0)
         self.bottom_rect = pygame.Rect(0, 0, 0, 0)
 
-    def spawn(self, gap):
+    def spawn(self, gap, prev_gap_y=None, max_shift=None):
+        """Put this barrier at the right edge with a random gap height.
+        If the previous gap height is given, the new gap stays within max_shift pixels of it."""
         self.x = float(WIDTH)
         self.gap = gap
-        self.gap_y = random.randint(
-            GAP_MARGIN, HEIGHT - GAP_MARGIN - gap
-        )
+        low = GAP_MARGIN                          # highest allowed gap position
+        high = HEIGHT - GAP_MARGIN - gap          # lowest allowed gap position
+        if prev_gap_y is not None and max_shift is not None:
+            near_low = max(low, prev_gap_y - max_shift)
+            near_high = min(high, prev_gap_y + max_shift)
+            if near_low <= near_high:
+                low, high = near_low, near_high
+        self.gap_y = random.randint(low, high)
         self.passed = False
         self.active = True
         self.update_rects()
@@ -34,12 +41,8 @@ class Barrier:
     def update_rects(self):
         x = round(self.x)
         gap_bottom = self.gap_y + self.gap
-        self.top_rect = pygame.Rect(
-            x, 0, BARRIER_WIDTH, self.gap_y
-        )
-        self.bottom_rect = pygame.Rect(
-            x, gap_bottom, BARRIER_WIDTH, HEIGHT - gap_bottom
-        )
+        self.top_rect = pygame.Rect(x, 0, BARRIER_WIDTH, self.gap_y)
+        self.bottom_rect = pygame.Rect(x, gap_bottom, BARRIER_WIDTH, HEIGHT - gap_bottom)
 
     def is_off_screen(self):
         return self.x + BARRIER_WIDTH < 0

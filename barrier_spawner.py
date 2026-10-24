@@ -9,12 +9,14 @@ class BarrierSpawner:
         self.pool = []
         for _ in range(POOL_SIZE):
             self.pool.append(Barrier())
-        self.stone = TimeStone()      # only one Time Stone exists, and it is reused
+        self.stone = TimeStone()
+        self.last_gap_y = None        # height of the previous gap, so the next one stays reachable
 
     def reset(self):
         for barrier in self.pool:
             barrier.active = False
         self.stone.active = False
+        self.last_gap_y = None
 
     def active_barriers(self):
         result = []
@@ -23,11 +25,13 @@ class BarrierSpawner:
                 result.append(barrier)
         return result
 
-    def spawn(self, gap):
+    def spawn(self, gap, speed=250):
+        # The faster the barriers, the less time to climb, so the smaller the allowed shift
+        max_shift = int(CLIMB_RATE * BARRIER_SPACING / max(speed, 1))
         for barrier in self.pool:
             if not barrier.active:
-                barrier.spawn(gap)
-                # Sometimes bring a Time Stone, halfway between this barrier and the next
+                barrier.spawn(gap, self.last_gap_y, max_shift)
+                self.last_gap_y = barrier.gap_y
                 if not self.stone.active and random.random() < STONE_CHANCE:
                     self.stone.spawn(WIDTH + BARRIER_SPACING // 2)
                 return
@@ -35,16 +39,16 @@ class BarrierSpawner:
     def update(self, dt, speed, gap):
         active = self.active_barriers()
         if len(active) == 0:
-            self.spawn(gap)
+            self.spawn(gap, speed)
         else:
             newest_x = max(b.x for b in active)
             if newest_x <= WIDTH - BARRIER_SPACING:
-                self.spawn(gap)
+                self.spawn(gap, speed)
 
         for barrier in self.pool:
             if barrier.active:
                 barrier.update(dt, speed)
-        self.stone.update(dt, speed)     # the stone moves at the same speed as the barriers
+        self.stone.update(dt, speed)
 
     def hits_player(self, player_rect):
         for barrier in self.pool:
