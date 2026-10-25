@@ -109,7 +109,7 @@ class Barrier:
                     pygame.draw.circle(screen, PALE, (rx, y), 1)
 
             # Violet frame
-            pygame.draw.rect(screen, VIOLET, rect, 3)
+            pygame.draw.rect(screen, GOLD, rect, 2)
 
             inner = rect.inflate(-12, 0)
             if inner.width > 0 and inner.height > 0:

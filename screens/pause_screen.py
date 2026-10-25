@@ -1,5 +1,6 @@
 
 import math
+import random
 import pygame
 
 
@@ -17,31 +18,140 @@ class PauseScreen:
         self.subtitle_font = pygame.font.Font(
             "assets/fonts/Cinzel-Regular.ttf", 16
         )
+        self.small_font = pygame.font.Font(None, 20)
 
         # Buttons
         self.resume_button = pygame.Rect(0, 0, 280, 58)
         self.menu_button = pygame.Rect(0, 0, 280, 58)
         self.hovered_button = None
 
+        # Decorative particles
+        random.seed(23)
+        self.particles = []
+
+        for _ in range(55):
+            self.particles.append({
+                "x": random.random(),
+                "y": random.random(),
+                "size": random.choice([1, 1, 2, 3]),
+                "speed": random.uniform(5, 18),
+                "phase": random.uniform(0, math.tau),
+            })
+
+        random.seed()
+
     def draw(self):
         width, height = self.screen.get_size()
         cx, cy = width // 2, height // 2
+        ticks = pygame.time.get_ticks()
 
-        # Dark overlay â€” gameplay remains visible behind it
+        # Dark overlay: gameplay remains visible
         overlay = pygame.Surface(
             (width, height), pygame.SRCALPHA
         )
         overlay.fill((8, 5, 16, 215))
         self.screen.blit(overlay, (0, 0))
 
-        # Subtle animated portal
-        pulse = math.sin(pygame.time.get_ticks() * 0.002)
-        portal_y = cy - 125
+        pulse = math.sin(ticks * 0.002)
+        portal_y = cy - 135
 
+        # Soft magical glow
+        glow = pygame.Surface(
+            (width, height), pygame.SRCALPHA
+        )
+
+        pygame.draw.circle(
+            glow,
+            (85, 35, 125, 22),
+            (cx, portal_y),
+            int(155 + pulse * 8),
+        )
+
+        self.screen.blit(glow, (0, 0))
+
+        # Faint background grid
+        grid_color = (27, 19, 39)
+
+        for x in range(35, width, 55):
+            pygame.draw.line(
+                self.screen, grid_color,
+                (x, 0), (x, height), 1
+            )
+
+        for y in range(30, height, 55):
+            pygame.draw.line(
+                self.screen, grid_color,
+                (0, y), (width, y), 1
+            )
+
+        # Floating magical particles
+        for particle in self.particles:
+            x = int(particle["x"] * width)
+
+            y = int(
+                (
+                    particle["y"] * height
+                    - ticks * particle["speed"] / 1000
+                ) % height
+            )
+
+            shimmer = (
+                math.sin(
+                    ticks * 0.003 + particle["phase"]
+                ) + 1
+            ) / 2
+
+            color = (
+                int(150 + shimmer * 80),
+                int(110 + shimmer * 90),
+                int(40 + shimmer * 35),
+            )
+
+            pygame.draw.circle(
+                self.screen,
+                color,
+                (x, y),
+                particle["size"],
+            )
+
+        # Decorative outer frame
+        margin = 30
+
+        pygame.draw.rect(
+            self.screen,
+            (105, 80, 43),
+            (margin, margin,
+             width - 2 * margin, height - 2 * margin),
+            1,
+        )
+
+        # Frame corner ornaments
+        corner_length = 24
+        corner_color = (125, 76, 145)
+
+        corners = [
+            (margin, margin, 1, 1),
+            (width - margin, margin, -1, 1),
+            (margin, height - margin, 1, -1),
+            (width - margin, height - margin, -1, -1),
+        ]
+
+        for x, y, dx, dy in corners:
+            pygame.draw.line(
+                self.screen, corner_color,
+                (x, y), (x + dx * corner_length, y), 2
+            )
+
+            pygame.draw.line(
+                self.screen, corner_color,
+                (x, y), (x, y + dy * corner_length), 2
+            )
+
+        # Animated portal rings
         for radius, color, thickness in [
-            (78, (75, 35, 105), 2),
-            (62, (125, 65, 155), 1),
-            (46, (65, 30, 90), 1),
+            (78, (105, 75, 38), 2),
+            (62, (185, 145, 70), 1),
+            (46, (80, 55, 35), 1),
         ]:
             pygame.draw.circle(
                 self.screen,
@@ -51,19 +161,46 @@ class PauseScreen:
                 thickness,
             )
 
+        # Broken portal arcs
+        for i in range(6):
+            start_angle = (
+                i * math.tau / 6 + ticks * 0.00015
+            )
+            end_angle = start_angle + 0.45
+
+            pygame.draw.arc(
+                self.screen,
+                (145, 75, 170),
+                pygame.Rect(
+                    cx - 88, portal_y - 88, 176, 176
+                ),
+                start_angle,
+                end_angle,
+                2,
+            )
+
         # Rotating rune marks
-        angle_offset = pygame.time.get_ticks() * 0.0003
+        angle_offset = ticks * 0.0003
 
         for i in range(8):
             angle = angle_offset + i * math.pi / 4
-            x = cx + int(88 * math.cos(angle))
-            y = portal_y + int(88 * math.sin(angle))
+
+            x = cx + int(95 * math.cos(angle))
+            y = portal_y + int(95 * math.sin(angle))
 
             pygame.draw.circle(
                 self.screen,
-                (170, 115, 200),
+                (210, 170, 85),
                 (x, y),
                 2,
+            )
+
+            pygame.draw.line(
+                self.screen,
+                (95, 60, 125),
+                (x - 4, y - 4),
+                (x + 4, y + 4),
+                1,
             )
 
         # Pause heading
@@ -72,28 +209,51 @@ class PauseScreen:
             True,
             (235, 220, 245),
         )
+
         self.screen.blit(
             title,
-            title.get_rect(center=(cx, cy - 15)),
+            title.get_rect(center=(cx, cy - 18)),
         )
 
-        # Subtle gold divider
+        # Decorative divider
+        divider_y = cy + 17
+
         pygame.draw.line(
             self.screen,
-            (145, 112, 75),
-            (cx - 55, cy + 20),
-            (cx + 55, cy + 20),
+            (115, 83, 135),
+            (cx - 105, divider_y),
+            (cx - 12, divider_y),
+            1,
+        )
+
+        pygame.draw.polygon(
+            self.screen,
+            (205, 170, 105),
+            [
+                (cx, divider_y - 4),
+                (cx + 4, divider_y),
+                (cx, divider_y + 4),
+                (cx - 4, divider_y),
+            ],
+        )
+
+        pygame.draw.line(
+            self.screen,
+            (115, 83, 135),
+            (cx + 12, divider_y),
+            (cx + 105, divider_y),
             1,
         )
 
         subtitle = self.subtitle_font.render(
-            "TIME STANDS STILL...FOR NOW",
+            "TIME STANDS STILL... FOR NOW",
             True,
             (175, 145, 190),
         )
+
         self.screen.blit(
             subtitle,
-            subtitle.get_rect(center=(cx, cy + 43)),
+            subtitle.get_rect(center=(cx, cy + 42)),
         )
 
         # Buttons
@@ -105,6 +265,7 @@ class PauseScreen:
             "RESUME JOURNEY",
             "resume",
         )
+
         self.draw_button(
             self.menu_button,
             "RETURN TO REALM",
@@ -112,16 +273,18 @@ class PauseScreen:
         )
 
         # Keyboard hint
-        hint = pygame.font.Font(None, 20).render(
+        hint = self.small_font.render(
             "ESC  |  RESUME",
             True,
-            (115, 100, 130),
-        )
-        self.screen.blit(
-            hint,
-            hint.get_rect(center=(cx, height - 24)),
+            (135, 115, 150),
         )
 
+        self.screen.blit(
+            hint,
+            hint.get_rect(
+                center=(cx, height - 48)
+            ),
+        )
 
     def draw_button(self, rect, text, button_name):
         hovered = self.hovered_button == button_name
@@ -138,18 +301,27 @@ class PauseScreen:
             border_width = 1
 
         pygame.draw.rect(
-            self.screen, fill, rect, border_radius=5
+            self.screen,
+            fill,
+            rect,
+            border_radius=5,
         )
+
         pygame.draw.rect(
-            self.screen, border, rect,
-            border_width, border_radius=5
+            self.screen,
+            border,
+            rect,
+            border_width,
+            border_radius=5,
         )
 
         label = self.button_font.render(
             text, True, text_color
         )
+
         self.screen.blit(
-            label, label.get_rect(center=rect.center)
+            label,
+            label.get_rect(center=rect.center),
         )
 
     def handle_event(self, event):
@@ -167,6 +339,7 @@ class PauseScreen:
         ):
             if self.resume_button.collidepoint(event.pos):
                 return "resume"
+
             if self.menu_button.collidepoint(event.pos):
                 return "menu"
 

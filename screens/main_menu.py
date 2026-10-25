@@ -10,7 +10,7 @@ class MainMenu:
         self.width, self.height = screen.get_size()
         self.high_score = high_score
 
-        # Fonts — Cinzel for the dark fantasy theme
+        # Fonts — dark fantasy theme
         self.title_font = pygame.font.Font(
             "assets/fonts/Cinzel-Regular.ttf", 52
         )
@@ -32,29 +32,90 @@ class MainMenu:
         self.quit_button = pygame.Rect(0, 0, 280, 58)
         self.hovered_button = None
 
-                # Floating magical particles
+        # Floating magical particles
         random.seed(10)
         self.particles = [
             [
                 random.randint(0, self.width),
                 random.randint(0, self.height),
-                random.uniform(0.3, 1.0),
-                random.randint(1, 3),
+                random.uniform(0.25, 0.7),
+                random.choice([1, 1, 2]),
                 random.choice([
-                    (155, 100, 220),  # Mystical purple
-                    (190, 145, 65),   # Antique gold
-                    (115, 70, 175),   # Deep purple
-                    (225, 190, 110),  # Bright gold
+                    (155, 100, 220),
+                    (190, 145, 65),
+                    (115, 70, 175),
+                    (225, 190, 110),
                 ]),
             ]
-            for _ in range(65)
+            for _ in range(100)
         ]
+
+    def draw_glow_text(
+        self, text, font, color, center, glow_color
+    ):
+        # Sharp, focused glow
+        for radius, alpha in [(3, 35), (2, 70), (1, 120)]:
+            glow = font.render(text, True, glow_color)
+            glow.set_alpha(alpha)
+
+            for dx, dy in [
+                (-radius, 0),
+                (radius, 0),
+                (0, -radius),
+                (0, radius),
+            ]:
+                rect = glow.get_rect(
+                    center=(
+                        center[0] + dx,
+                        center[1] + dy,
+                    )
+                )
+                self.screen.blit(glow, rect)
+
+        # Crisp text over the glow
+        label = font.render(text, True, color)
+        self.screen.blit(
+            label, label.get_rect(center=center)
+        )
 
     def draw(self):
         width, height = self.screen.get_size()
         cx = width // 2
 
+        # Dark fantasy background
         self.screen.fill((10, 7, 19))
+        # Moving golden ambient lights
+        time = pygame.time.get_ticks() * 0.001
+
+        for i, (x, y, radius) in enumerate([
+            (120, 100, 90),
+            (780, 150, 110),
+            (150, 490, 100),
+            (760, 470, 120),
+            (450, 80, 85),  # New golden light
+        ]):
+            move_x = math.sin(time * 0.8 + i) * 35
+            move_y = math.cos(time * 0.6 + i) * 25
+
+            glow = pygame.Surface(
+                (radius * 2, radius * 2),
+                pygame.SRCALPHA,
+            )
+
+            for r in range(radius, 0, -4):
+                alpha = int(22 * (1 - r / radius))
+                pygame.draw.circle(
+                    glow,
+                    (255, 190, 75, alpha),
+                    (radius, radius),
+                    r,
+                )
+
+            self.screen.blit(
+                glow,
+                (int(x + move_x - radius), int(y + move_y - radius)),
+            )
+                
 
         # Background mist
         mist = pygame.Surface(
@@ -79,30 +140,37 @@ class MainMenu:
             pygame.time.get_ticks() * 0.002
         )
 
+        # Layered purple aura
         glow = pygame.Surface(
             (width, height), pygame.SRCALPHA
         )
 
         pygame.draw.circle(
             glow,
-            (100, 25, 160, 24),
+            (105, 35, 170, 18),
             (cx, cy),
-            int(105 + pulse * 5),
+            int(112 + pulse * 4),
         )
         pygame.draw.circle(
             glow,
-            (130, 45, 200, 32),
+            (125, 40, 195, 28),
             (cx, cy),
-            int(82 + pulse * 4),
+            int(91 + pulse * 3),
+        )
+        pygame.draw.circle(
+            glow,
+            (150, 55, 220, 32),
+            (cx, cy),
+            int(74 + pulse * 2),
         )
 
         self.screen.blit(glow, (0, 0))
 
-        # Portal rings
+        # Portal rings — outer purple, middle gold, inner purple
         for radius, color, thickness in [
-            (78, (95, 45, 145), 3),
-            (67, (155, 75, 205), 2),
-            (54, (90, 45, 145), 2),
+            (78, (175, 90, 225), 2),
+            (67, (235, 185, 95), 2),
+            (54, (110, 55, 165), 1),
         ]:
             pygame.draw.circle(
                 self.screen,
@@ -112,7 +180,62 @@ class MainMenu:
                 thickness,
             )
 
-        # Rotating rune marks
+                # Six small magical orbs: 3 gold, 3 purple
+        orb_time = pygame.time.get_ticks() * 0.001
+
+        orb_colors = [
+            (235, 190, 105),
+            (175, 110, 220),
+            (235, 190, 105),
+            (175, 110, 220),
+            (235, 190, 105),
+            (175, 110, 220),
+        ]
+
+        for i, orb_color in enumerate(orb_colors):
+            angle = orb_time * 0.25 + i * (math.pi / 3)
+
+            orbit_radius = 100 + math.sin(
+                orb_time + i
+            ) * 4
+
+            ox = cx + int(orbit_radius * math.cos(angle))
+            oy = cy + int(orbit_radius * math.sin(angle))
+
+            # Tiny outer glow
+            pygame.draw.circle(
+                self.screen,
+                orb_color,
+                (ox, oy),
+                4,
+                1,
+            )
+
+            # Small bright center
+            pygame.draw.circle(
+                self.screen,
+                orb_color,
+                (ox, oy),
+                2,
+            )
+            # Subtle outer glow
+            pygame.draw.circle(
+                self.screen,
+                orb_color,
+                (ox, oy),
+                5,
+                1,
+            )
+
+            # Small luminous orb
+            pygame.draw.circle(
+                self.screen,
+                orb_color,
+                (ox, oy),
+                2,
+            )
+
+        # Small rotating rune accents
         angle = pygame.time.get_ticks() * 0.0003
 
         for i in range(8):
@@ -124,7 +247,7 @@ class MainMenu:
                 self.screen,
                 (195, 120, 235),
                 (x, y),
-                3,
+                2,
             )
 
         # Floating magical particles
@@ -137,33 +260,75 @@ class MainMenu:
 
             pygame.draw.circle(
                 self.screen,
-                particle[4],  # Each particle's own color
+                particle[4],
                 (int(particle[0]), int(particle[1])),
                 particle[3],
             )
 
-        # Game title
-        title = self.title_font.render(
+        
+        # Royal golden heading with side ornaments
+        title_y = 55
+
+        self.draw_glow_text(
             "CLOAK OF CHAOS",
-            True,
-            (232, 195, 115),
-        )
-        self.screen.blit(
-            title,
-            title.get_rect(center=(cx, 95)),
+            self.title_font,
+            (240, 205, 125),
+            (cx, title_y),
+            (255, 185, 65),
         )
 
+        # Royal ornaments beside the heading
+        title_width = self.title_font.size("CLOAK OF CHAOS")[0]
+        half_width = title_width // 2
+        ornament_gap = 22
+
+        left_x = cx - half_width - ornament_gap
+        right_x = cx + half_width + ornament_gap
+
+        for side in (-1, 1):
+            x = left_x if side == -1 else right_x
+
+            # Fine golden horizontal lines
+            pygame.draw.line(
+                self.screen,
+                (175, 130, 65),
+                (x - side * 25, title_y),
+                (x - side * 5, title_y),
+                1,
+            )
+
+            # Small royal diamond
+            diamond_size = 5
+            pygame.draw.polygon(
+                self.screen,
+                (225, 185, 105),
+                [
+                    (x, title_y - diamond_size),
+                    (x + side * diamond_size, title_y),
+                    (x, title_y + diamond_size),
+                    (x - side * diamond_size, title_y),
+                ],
+            )
+
+            # Tiny accent above the diamond
+            pygame.draw.circle(
+                self.screen,
+                (245, 215, 155),
+                (x, title_y - 12),
+                1,
+            )
+
+
+        # Subtitle
         subtitle = self.subtitle_font.render(
-            "R I F T   R U N N E R",
-            True,
-            (177, 125, 210),
-        )
-        self.screen.blit(
-            subtitle,
-            subtitle.get_rect(center=(cx, 140)),
-        )
+    "R I F T   R U N N E R",
+    True,
+    (177, 125, 210),
+)
+        subtitle_rect = subtitle.get_rect(center=(cx, 105))
+        self.screen.blit(subtitle, subtitle_rect)
 
-        # Buttons
+        # Button positions
         self.start_button.center = (
             cx, height // 2 + 85
         )
@@ -182,17 +347,13 @@ class MainMenu:
             "quit",
         )
 
-        # High score — minimalist Cinzel
-        score_text = self.score_font.render(
+        # High score
+        self.draw_glow_text(
             f"HIGH SCORE: {self.high_score}",
-            True,
-            (190, 160, 110),
-        )
-        self.screen.blit(
-            score_text,
-            score_text.get_rect(
-                center=(cx, height - 65)
-            ),
+            self.score_font,
+            (195, 165, 110),
+            (cx, height - 65),
+            (190, 125, 50),
         )
 
         # Footer
@@ -212,15 +373,54 @@ class MainMenu:
         hovered = self.hovered_button == button_name
 
         if hovered:
-            fill = (38, 25, 48)
-            border = (205, 170, 105)
-            text_color = (255, 235, 195)
+            fill = (35, 23, 47)
+            border = (235, 195, 130)
+            text_color = (255, 238, 205)
+            glow_color = (220, 150, 75)
+            glow_alpha = 45
             border_width = 2
         else:
             fill = (18, 12, 28)
-            border = (105, 75, 125)
-            text_color = (215, 195, 230)
+            border = (145, 100, 175)
+            text_color = (220, 200, 235)
+            glow_color = (145, 65, 200)
+            glow_alpha = 22
             border_width = 1
+
+        # Medium outer glow
+        margin = 18
+        glow_surface = pygame.Surface(
+            (
+                rect.width + margin * 2,
+                rect.height + margin * 2,
+            ),
+            pygame.SRCALPHA,
+        )
+
+        for padding, alpha, thickness in [
+            (12, glow_alpha // 3, 4),
+            (7, glow_alpha // 2, 3),
+            (3, glow_alpha, 2),
+        ]:
+            glow_rect = pygame.Rect(
+                margin - padding,
+                margin - padding,
+                rect.width + padding * 2,
+                rect.height + padding * 2,
+            )
+
+            pygame.draw.rect(
+                glow_surface,
+                (*glow_color, alpha),
+                glow_rect,
+                width=thickness,
+                border_radius=8,
+            )
+
+        self.screen.blit(
+            glow_surface,
+            (rect.x - margin, rect.y - margin),
+        )
 
         # Button background
         pygame.draw.rect(
@@ -239,15 +439,13 @@ class MainMenu:
             border_radius=5,
         )
 
-        # Cinzel button text
-        label = self.button_font.render(
+        # Glowing text
+        self.draw_glow_text(
             text,
-            True,
+            self.button_font,
             text_color,
-        )
-        self.screen.blit(
-            label,
-            label.get_rect(center=rect.center),
+            rect.center,
+            glow_color,
         )
 
     def handle_event(self, event):
