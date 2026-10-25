@@ -1,4 +1,3 @@
-
 import math
 import pygame
 from settings import *
@@ -73,153 +72,89 @@ class Player:
         screen.blit(trail_surface, (0, 0))
 
         # --------------------------------------------------
-        # 2. Sharp, tapered cloak
+        # 2. Flared, fluttering cloak (wider toward the tail)
         # --------------------------------------------------
-        size = 160
+        size = 240                      # bigger canvas for the larger cloak
         c = size // 2
-        surf = pygame.Surface(
-            (size, size), pygame.SRCALPHA
-        )
+        surf = pygame.Surface((size, size), pygame.SRCALPHA)
 
-        scale = 0.72
-        flutter = math.sin(self.time * 7) * 2
-        flutter2 = math.sin(self.time * 7 + 1) * 2
+        head_scale = 0.62               # hood / face size
+        cloak_scale = 0.77              # cloak size
 
         def pt(x, y):
-            return (
-                round(c + x * scale),
-                round(c + y * scale)
-            )
+            return (round(c + x * head_scale), round(c + y * head_scale))
 
-        def curve(p0, p1, p2, p3, steps=12):
-            points = []
+        def cpt(x, y):
+            return (round(c + x * cloak_scale), round(c + y * cloak_scale))
 
-            for i in range(steps + 1):
-                t = i / steps
-                u = 1 - t
+        def lerp(a, b, s):
+            return a + (b - a) * s
 
-                x = (
-                    u**3 * p0[0]
-                    + 3 * u**2 * t * p1[0]
-                    + 3 * u * t**2 * p2[0]
-                    + t**3 * p3[0]
-                )
+        # A wave that travels down the cloak; grows toward the tail.
+        def wave(t, phase=0.0):
+            return math.sin(self.time * 7 - t * 5 + phase) * (1 + 10 * t)
 
-                y = (
-                    u**3 * p0[1]
-                    + 3 * u**2 * t * p1[1]
-                    + 3 * u * t**2 * p2[1]
-                    + t**3 * p3[1]
-                )
+        SEG = 16
+        TAIL_X = -112
 
-                points.append(pt(x, y))
+        def cloak_y(t, f):
+            """y at position t (0 = shoulder, 1 = tail) and fraction f
+            (0 = top edge, 1 = bottom edge)."""
+            cy = 2 + wave(t)
+            half_top = 12 + 22 * t ** 1.6      # widens toward the tail
+            half_bot = 11 + 30 * t ** 1.4
+            return lerp(cy - half_top, cy + half_bot, f)
 
-            return points
+        def cloak_x(t):
+            return -26 + (TAIL_X + 26) * t
 
-        # Rear edge: starts at a sharp tip and widens
-        # slightly near the shoulder.
-        upper = curve(
-            (-112, 18 + flutter),
-            (-90, 11),
-            (-60, -15),
-            (-30, -15)
-        )
+        top = [cpt(cloak_x(i / SEG), cloak_y(i / SEG, 0)) for i in range(SEG + 1)]
+        bot = [cpt(cloak_x(i / SEG), cloak_y(i / SEG, 1)) for i in range(SEG + 1)]
 
-        upper += curve(
-            (-30, -15),
-            (-12, -18),
-            (7, -10),
-            (22, -7)
-        )[1:]
+        # Ragged, fluttering hem at the tail end.
+        hem = []
+        TEETH = 6
+        for k in range(TEETH + 1):
+            s = k / TEETH
+            y = cloak_y(1.0, s)
+            x = TAIL_X + (-9 if k % 2 == 0 else 4)
+            x += math.sin(self.time * 9 + k * 1.7) * 3
+            y += math.sin(self.time * 8 + k * 1.3) * 2
+            hem.append(cpt(x, y))
 
-        # Front underside narrows back toward a point.
-        lower = curve(
-            (34, -2),
-            (18, 5),
-            (-10, 19 + flutter2),
-            (-43, 18 + flutter)
-        )
-
-        lower += curve(
-            (-43, 18 + flutter),
-            (-70, 18),
-            (-98, 25 + flutter2),
-            (-112, 18 + flutter)
-        )[1:]
-
-        body = upper + [
-            pt(29, -7),
-            pt(34, -2)
-        ] + lower
+        body = top + hem + bot[::-1] + [pt(34, -2), pt(29, -7)]
 
         # Opaque royal-purple fabric.
-        pygame.draw.polygon(
-            surf, (48, 32, 68, 255), body
-        )
+        pygame.draw.polygon(surf, (48, 32, 68, 255), body)
 
-        # Thin silver outline emphasizes the sharp shape.
-        pygame.draw.lines(
-            surf, (190, 180, 215, 255),
-            True, body, 2
-        )
+        # Inner lighter panel (same shape, inset).
+        IN_END = 0.9
+        inner_top = [
+            (round(c + cloak_x(i / SEG * IN_END) * cloak_scale),
+             round(c + cloak_y(i / SEG * IN_END, 0.22) * cloak_scale))
+            for i in range(SEG + 1)
+        ]
+        inner_bot = [
+            (round(c + cloak_x(i / SEG * IN_END) * cloak_scale),
+             round(c + cloak_y(i / SEG * IN_END, 0.78) * cloak_scale))
+            for i in range(SEG + 1)
+        ]
+        pygame.draw.polygon(surf, (89, 60, 125, 255), inner_top + inner_bot[::-1])
 
-        # Inner panel is also tapered, not oval.
-        inner_top = curve(
-            (-104, 17 + flutter),
-            (-77, 8),
-            (-48, -9),
-            (-25, -9)
-        )
+        # Fabric folds running toward the tail.
+        for f, color, w in (
+            (0.30, (211, 201, 229, 255), 1),
+            (0.52, (48, 32, 70, 255), 2),
+            (0.74, (169, 153, 199, 255), 1),
+        ):
+            fold = [
+                (round(c + cloak_x(t) * cloak_scale), round(c + cloak_y(t, f) * cloak_scale))
+                for t in [0.08 + 0.87 * i / SEG for i in range(SEG + 1)]
+            ]
+            pygame.draw.lines(surf, color, False, fold, w)
 
-        inner_bottom = curve(
-            (-25, -9),
-            (-42, 0),
-            (-67, 15 + flutter2),
-            (-96, 21 + flutter)
-        )
-
-        inner = inner_top + inner_bottom
-
-        pygame.draw.polygon(
-            surf, (89, 60, 125, 255), inner
-        )
-
-        # Long, narrow fabric folds.
-        fold1 = curve(
-            (-101, 17 + flutter),
-            (-73, 8),
-            (-46, -3),
-            (-25, -8)
-        )
-
-        fold2 = curve(
-            (-96, 21 + flutter2),
-            (-68, 14),
-            (-39, 4),
-            (-14, -5)
-        )
-
-        fold3 = curve(
-            (-80, 22 + flutter),
-            (-54, 17),
-            (-29, 9),
-            (-8, 1)
-        )
-
-        pygame.draw.lines(
-            surf, (211, 201, 229, 255),
-            False, fold1, 1
-        )
-
-        pygame.draw.lines(
-            surf, (48, 32, 70, 255),
-            False, fold2, 2
-        )
-
-        pygame.draw.lines(
-            surf, (169, 153, 199, 255),
-            False, fold3, 1
-        )
+        # Silver outline over the whole shape.
+        pygame.draw.lines(surf, (190, 180, 215, 255), True, body, 2)
 
         # --------------------------------------------------
         # 3. Hood facing right
@@ -245,27 +180,52 @@ class Player:
             True, hood, 1
         )
 
-        # Dark face opening.
+        # Dark face opening (smoother, deeper shape).
         face = [
-            pt(18, -16),
-            pt(29, -10),
-            pt(27, -3),
-            pt(17, -4),
-            pt(13, -9),
+            pt(17, -17),
+            pt(24, -15),
+            pt(30, -10),
+            pt(30, -4),
+            pt(25, -1),
+            pt(18, -3),
+            pt(13, -8),
+            pt(13, -13),
         ]
 
         pygame.draw.polygon(
-            surf, (12, 10, 23, 255), face
+            surf, (8, 6, 18, 255), face
         )
 
-        # Cyan eye.
-        pygame.draw.line(
+        # Soft inner shadow so the face reads as a hollow under the hood.
+        shade = [
+            pt(17, -17),
+            pt(24, -15),
+            pt(29, -11),
+            pt(22, -11),
+            pt(15, -12),
+        ]
+
+        pygame.draw.polygon(
+            surf, (22, 16, 38, 255), shade
+        )
+
+        # Glowing cyan eye: halo, almond shape, bright core.
+        ex, ey = pt(24, -8)
+
+        glow = pygame.Surface((24, 24), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (115, 220, 255, 35), (12, 12), 9)
+        pygame.draw.circle(glow, (115, 220, 255, 70), (12, 12), 6)
+        surf.blit(glow, (ex - 12, ey - 12))
+
+        pygame.draw.ellipse(
             surf, (115, 220, 255, 255),
-            pt(20, -9),
-            pt(27, -8),
-            2
+            pygame.Rect(ex - 4, ey - 2, 8, 4)
         )
 
+        pygame.draw.ellipse(
+            surf, (225, 250, 255, 255),
+            pygame.Rect(ex - 1, ey - 1, 4, 2)
+        )
 
         # Silver clasp.
         pygame.draw.circle(
