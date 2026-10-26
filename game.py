@@ -2,7 +2,7 @@
 import math
 import os
 import pygame
-
+from high_score_storage import HighScoreStorage
 from settings import *
 from player import Player
 from score_manager import ScoreManager
@@ -106,13 +106,22 @@ class Game:
             "assets/fonts/Cinzel-Regular.ttf", 15
         )
 
+        
+# Reset the saved high score whenever the game launches
+        self.high_score_storage = HighScoreStorage()
+        self.high_score_storage.save(0)
+
         self.player = Player()
-        self.score_manager = ScoreManager()
+        self.score_manager = ScoreManager(self.high_score_storage)
         self.difficulty = DifficultyManager()
         self.power_up = TimeStoneEffect()
         self.spawner = BarrierSpawner()
 
-        self.menu = MainMenu(self.screen)
+        self.menu = MainMenu(
+            self.screen,
+            self.score_manager.high_score
+        )
+
         self.game_over_screen = GameOverScreen(self.screen)
         self.pause_screen = PauseScreen(self.screen)
 
@@ -164,6 +173,9 @@ class Game:
         is_record = self.score_manager.end_run()
         self.final_score = self.score_manager.score
         self.final_best = self.score_manager.high_score
+
+        self.high_score = self.final_best
+        self.menu.high_score = self.high_score
         self.final_record = is_record
         self.final_saved = self.score_manager.last_save_ok
 
