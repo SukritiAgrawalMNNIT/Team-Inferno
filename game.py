@@ -1,4 +1,3 @@
-
 import math
 import os
 import pygame
@@ -9,6 +8,7 @@ from score_manager import ScoreManager
 from difficulty_manager import DifficultyManager
 from power_up import TimeStoneEffect
 from barrier_spawner import BarrierSpawner
+from checkpoints import CheckpointManager
 from screens.main_menu import MainMenu
 from screens.game_over import GameOverScreen
 from screens.pause_screen import PauseScreen
@@ -65,6 +65,7 @@ class Game:
                 "score": "score.wav",
                 "hit": "hit.wav",
                 "game_over": "game_over.wav",
+                "checkpoint": "checkpoint.wav",
             }
 
             for name, filename in sound_files.items():
@@ -116,6 +117,7 @@ class Game:
         self.difficulty = DifficultyManager()
         self.power_up = TimeStoneEffect()
         self.spawner = BarrierSpawner()
+        self.checkpoints = CheckpointManager()
 
         self.menu = MainMenu(
             self.screen,
@@ -158,6 +160,7 @@ class Game:
         self.difficulty.reset()
         self.power_up.reset()
         self.spawner.reset()
+        self.checkpoints.reset()
         self.player.reset()
         self.popups = []
         self.state = "playing"
@@ -324,6 +327,14 @@ class Game:
 
             self.play_sound("score")
 
+            # Checkpoint reached? (fires once per milestone)
+            if self.checkpoints.check(self.score_manager.score):
+                if "checkpoint" in self.sounds:
+                    self.play_sound("checkpoint")
+                else:
+                    self.play_sound("collect")
+
+        self.checkpoints.update(dt)
         self.update_popups(dt)
 
         # Collision detection.
@@ -364,6 +375,31 @@ class Game:
         panel.fill((0, 0, 0, alpha))
         self.screen.blit(panel, (x, y))
 
+    def draw_checkpoint_banner(self):
+        timer = self.checkpoints.banner_timer
+        if timer <= 0:
+            return
+
+        # Fade in quickly, fade out during the last 0.5 seconds.
+        fade = min(1.0, timer / 0.5, (CHECKPOINT_BANNER_TIME - timer) / 0.2 + 0.0)
+        fade = max(0.0, min(1.0, fade))
+        alpha = int(255 * fade)
+
+        y = HEIGHT // 2 - 130
+        band = pygame.Surface((WIDTH, 90), pygame.SRCALPHA)
+        band.fill((15, 9, 27, int(170 * fade)))
+        self.screen.blit(band, (0, y - 45))
+
+        title = self.big_font.render("CHECKPOINT", True, (232, 195, 115))
+        title.set_alpha(alpha)
+        self.screen.blit(title, title.get_rect(center=(WIDTH // 2, y - 8)))
+
+        sub = self.font.render(
+            f"{self.score_manager.score} POINTS", True, (195, 175, 215)
+        )
+        sub.set_alpha(alpha)
+        self.screen.blit(sub, sub.get_rect(center=(WIDTH // 2, y + 28)))
+
     def draw_popups(self):
         for popup in self.popups:
             fade = 1 - popup["age"] / POPUP_TIME
@@ -379,6 +415,7 @@ class Game:
         self.spawner.draw(self.screen)
         self.player.draw(self.screen)
         self.draw_popups()
+        self.draw_checkpoint_banner()
 
         self.draw_center(
             str(self.score_manager.score),
@@ -414,6 +451,11 @@ class Game:
         self.draw_text(
             f"GAP SIZE: {self.difficulty.gap_size}",
             20, 80, color=lavender
+        )
+
+        self.draw_text(
+            f"CHECKPOINTS: {self.checkpoints.reached}",
+            20, 140, color=lavender
         )
 
         if self.power_up.active:
@@ -501,6 +543,10 @@ class Game:
             ),
             (
                 f"Time Stone active: {self.power_up.active}",
+                (195, 175, 215)
+            ),
+            (
+                f"Checkpoints reached: {self.checkpoints.reached}",
                 (195, 175, 215)
             ),
         ]

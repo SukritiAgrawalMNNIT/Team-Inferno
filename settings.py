@@ -26,3 +26,6 @@ STONE_RADIUS = 16             # size of the Time Stone
 STONE_CHANCE = 0.25           # chance that a new barrier brings a stone (25%)
 STONE_COLOR = (80, 220, 120)  # green, like the real Time Stone
 STONE_EDGE = (200, 255, 215)  # light outline
+
+CHECKPOINT_EVERY = 10          # a checkpoint every 10 points
+CHECKPOINT_BANNER_TIME = 2.0   # seconds the CHECKPOINT banner stays on screen
