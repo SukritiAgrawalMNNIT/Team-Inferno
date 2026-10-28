@@ -1,3 +1,4 @@
+
 import math
 import os
 import pygame
@@ -8,7 +9,8 @@ from score_manager import ScoreManager
 from difficulty_manager import DifficultyManager
 from power_up import TimeStoneEffect
 from barrier_spawner import BarrierSpawner
-from checkpoints import CheckpointManager
+from checkpoints import CheckpointManager                 # NEW
+from background_manager import BackgroundManager          # NEW
 from screens.main_menu import MainMenu
 from screens.game_over import GameOverScreen
 from screens.pause_screen import PauseScreen
@@ -65,7 +67,7 @@ class Game:
                 "score": "score.wav",
                 "hit": "hit.wav",
                 "game_over": "game_over.wav",
-                "checkpoint": "checkpoint.wav",
+                "checkpoint": "checkpoint.wav",           # NEW
             }
 
             for name, filename in sound_files.items():
@@ -93,6 +95,7 @@ class Game:
         self.background = pygame.transform.scale(
             self.background, (900, 600)
         )
+        self.bg_manager = BackgroundManager(self.background)   # NEW
 
         pygame.display.set_caption("Cloak of Chaos - Rift Runner")
         self.clock = pygame.time.Clock()
@@ -117,7 +120,7 @@ class Game:
         self.difficulty = DifficultyManager()
         self.power_up = TimeStoneEffect()
         self.spawner = BarrierSpawner()
-        self.checkpoints = CheckpointManager()
+        self.checkpoints = CheckpointManager()            # NEW
 
         self.menu = MainMenu(
             self.screen,
@@ -160,7 +163,8 @@ class Game:
         self.difficulty.reset()
         self.power_up.reset()
         self.spawner.reset()
-        self.checkpoints.reset()
+        self.checkpoints.reset()                          # NEW
+        self.bg_manager.reset()                           # NEW
         self.player.reset()
         self.popups = []
         self.state = "playing"
@@ -296,7 +300,22 @@ class Game:
         ]
 
     # ---------- Update ----------
+    # NEW: update_playing now only slices the frame time into small steps
     def update_playing(self, dt):
+        self.bg_manager.update(dt)                        # NEW
+
+        # Cut the frame into equal slices of at most PHYSICS_STEP seconds,
+        # so a slow PC and a fast PC run the same simulation.
+        steps = max(1, math.ceil(dt / PHYSICS_STEP))      # NEW
+        step_dt = dt / steps                              # NEW
+
+        for _ in range(steps):                            # NEW
+            self.step_playing(step_dt)                    # NEW
+            if self.state != "playing":      # player died during this slice
+                break
+
+    # CHANGED: this is your old update_playing body, renamed
+    def step_playing(self, dt):
         self.elapsed_time += dt
         self.player.update(dt)
         self.power_up.update(dt)
@@ -327,14 +346,15 @@ class Game:
 
             self.play_sound("score")
 
-            # Checkpoint reached? (fires once per milestone)
-            if self.checkpoints.check(self.score_manager.score):
-                if "checkpoint" in self.sounds:
-                    self.play_sound("checkpoint")
-                else:
-                    self.play_sound("collect")
+            # Checkpoint reached? (fires once per milestone)          # NEW
+            if self.checkpoints.check(self.score_manager.score):      # NEW
+                self.bg_manager.set_stage(self.checkpoints.reached)   # NEW
+                if "checkpoint" in self.sounds:                       # NEW
+                    self.play_sound("checkpoint")                     # NEW
+                else:                                                 # NEW
+                    self.play_sound("collect")                        # NEW
 
-        self.checkpoints.update(dt)
+        self.checkpoints.update(dt)                                   # NEW
         self.update_popups(dt)
 
         # Collision detection.
@@ -375,13 +395,14 @@ class Game:
         panel.fill((0, 0, 0, alpha))
         self.screen.blit(panel, (x, y))
 
+    # NEW: whole method
     def draw_checkpoint_banner(self):
         timer = self.checkpoints.banner_timer
         if timer <= 0:
             return
 
         # Fade in quickly, fade out during the last 0.5 seconds.
-        fade = min(1.0, timer / 0.5, (CHECKPOINT_BANNER_TIME - timer) / 0.2 + 0.0)
+        fade = min(1.0, timer / 0.5, (CHECKPOINT_BANNER_TIME - timer) / 0.2)
         fade = max(0.0, min(1.0, fade))
         alpha = int(255 * fade)
 
@@ -411,11 +432,11 @@ class Game:
 
     # ---------- Drawing ----------
     def draw_world(self):
-        self.screen.blit(self.background, (0, 0))
+        self.bg_manager.draw(self.screen)                 # CHANGED (was: blit background)
         self.spawner.draw(self.screen)
         self.player.draw(self.screen)
         self.draw_popups()
-        self.draw_checkpoint_banner()
+        self.draw_checkpoint_banner()                     # NEW
 
         self.draw_center(
             str(self.score_manager.score),
@@ -453,10 +474,10 @@ class Game:
             20, 80, color=lavender
         )
 
-        self.draw_text(
-            f"CHECKPOINTS: {self.checkpoints.reached}",
-            20, 140, color=lavender
-        )
+        self.draw_text(                                   # NEW
+            f"CHECKPOINTS: {self.checkpoints.reached}",  # NEW
+            20, 140, color=lavender                       # NEW
+        )                                                 # NEW
 
         if self.power_up.active:
             self.draw_text(
@@ -545,7 +566,7 @@ class Game:
                 f"Time Stone active: {self.power_up.active}",
                 (195, 175, 215)
             ),
-            (
+            (                                                  # NEW
                 f"Checkpoints reached: {self.checkpoints.reached}",
                 (195, 175, 215)
             ),
@@ -604,7 +625,7 @@ class Game:
     # ---------- Main loop ----------
     def run(self):
         while self.running:
-            dt = min(self.clock.tick(FPS) / 1000, 0.05)
+            dt = min(self.clock.tick(FPS) / 1000, MAX_FRAME_TIME)   # CHANGED (was 0.05)
             self.handle_events()
             self.update(dt)
             self.draw()
