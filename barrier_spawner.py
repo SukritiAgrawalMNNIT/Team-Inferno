@@ -1,6 +1,7 @@
 import random
 from barrier import Barrier
 from time_stone import TimeStone
+from bonus_orb import BonusOrb
 from settings import *
 
 
@@ -16,6 +17,7 @@ class BarrierSpawner:
             self.pool.append(Barrier())
 
         self.stone = TimeStone()
+        self.bonus = BonusOrb()
         self.next_spawn_distance = self.random_horizontal_gap()
 
     def random_horizontal_gap(self):
@@ -29,6 +31,7 @@ class BarrierSpawner:
             barrier.active = False
 
         self.stone.active = False
+        self.bonus.active = False
         self.next_spawn_distance = self.random_horizontal_gap()
 
     def active_barriers(self):
@@ -53,6 +56,15 @@ class BarrierSpawner:
                 self.next_spawn_distance = (
                     self.random_horizontal_gap()
                 )
+
+                # Red Bonus Orb: 3/4 of the way to the next barrier
+                if (
+                    not self.bonus.active
+                    and random.random() < BONUS_CHANCE
+                ):
+                    self.bonus.spawn(
+                        WIDTH + self.next_spawn_distance * 3 // 4
+                    )
                 return
 
     def update(self, dt, speed, gap):
@@ -71,6 +83,7 @@ class BarrierSpawner:
                 barrier.update(dt, speed)
 
         self.stone.update(dt, speed)
+        self.bonus.update(dt, speed)
 
     def hits_player(self, player_rect):
         for barrier in self.pool:
@@ -81,6 +94,12 @@ class BarrierSpawner:
     def stone_collected(self, player_rect):
         if self.stone.collected(player_rect):
             self.stone.active = False
+            return True
+        return False
+
+    def bonus_collected(self, player_rect):
+        if self.bonus.collected(player_rect):
+            self.bonus.active = False
             return True
         return False
 
@@ -101,3 +120,4 @@ class BarrierSpawner:
                 barrier.draw(screen)
 
         self.stone.draw(screen)
+        self.bonus.draw(screen)

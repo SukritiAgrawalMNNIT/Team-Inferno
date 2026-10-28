@@ -14,7 +14,11 @@ class ScoreManager:
 
     def add_point(self):
         """Call this every time the Cloak passes through a gap (+1 point)."""
-        self.score = self.score + 1
+        self.add_points(1)
+
+    def add_points(self, amount):
+        """Add several points at once (used by the red Bonus Orb)."""
+        self.score = self.score + amount
         if self.score > self.high_score:
             self.high_score = self.score
             self.new_record = True

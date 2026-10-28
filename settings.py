@@ -33,3 +33,7 @@ CHECKPOINT_BANNER_TIME = 2.0   # seconds the CHECKPOINT banner stays on screen
 PHYSICS_STEP = 0.02      # the largest time slice the simulation takes at once (seconds)
 MAX_FRAME_TIME = 0.25    # safety cap, e.g. when the window is dragged or freezes
 TRAIL_INTERVAL = 1 / 60  # one trail sample every 1/60 second, on any system
+
+BONUS_RADIUS = 15             # size of the red Bonus Orb
+BONUS_CHANCE = 0.20           # chance that a new barrier brings a Bonus Orb (20%)
+BONUS_POINTS = 5              # extra score for collecting one
