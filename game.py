@@ -7,6 +7,7 @@ from player import Player
 from score_manager import ScoreManager
 from difficulty_manager import DifficultyManager
 from power_up import TimeStoneEffect
+from ghost_orb import GhostEffect
 from barrier_spawner import BarrierSpawner
 from checkpoints import CheckpointManager
 from background_manager import BackgroundManager
@@ -118,6 +119,8 @@ class Game:
         self.score_manager = ScoreManager(self.high_score_storage)
         self.difficulty = DifficultyManager()
         self.power_up = TimeStoneEffect()
+        self.ghost = GhostEffect()
+        self.ghost_exiting = False   # True until the cloak is clear of barriers after the effect ends
         self.spawner = BarrierSpawner()
         self.checkpoints = CheckpointManager()
 
@@ -161,6 +164,8 @@ class Game:
         self.score_manager.reset()
         self.difficulty.reset()
         self.power_up.reset()
+        self.ghost.reset()
+        self.ghost_exiting = False
         self.spawner.reset()
         self.checkpoints.reset()
         self.bg_manager.reset()
@@ -317,6 +322,7 @@ class Game:
         self.elapsed_time += dt
         self.player.update(dt)
         self.power_up.update(dt)
+        self.ghost.update(dt)
 
         self.spawner.update(
             dt,
@@ -327,6 +333,17 @@ class Game:
         # Collecting the Time Stone activates slow motion.
         if self.spawner.stone_collected(self.player.rect):
             self.power_up.activate()
+            self.play_sound("collect")
+
+        # Collecting the yellow Ghost Orb makes the Cloak invisible + invincible.
+        if self.spawner.ghost_collected(self.player.rect):
+            self.ghost.activate()
+            self.add_popup(
+                "GHOST!",
+                self.player.rect.right + 10,
+                self.player.rect.top - 10,
+                (255, 215, 40)
+            )
             self.play_sound("collect")
 
         # Collecting a red Bonus Orb gives extra points.
@@ -362,13 +379,30 @@ class Game:
         self.checkpoints.update(dt)
         self.update_popups(dt)
 
-        # Collision detection.
-        if (
-            self.player.hits_bounds()
-            or self.spawner.hits_player(self.player.rect)
-        ):
-            self.play_sound("hit")
-            self.end_run()
+        # Collision detection (barriers are harmless while the Ghost effect is on).
+        if self.ghost.active:
+            self.ghost_exiting = True
+            # Can't fly out of the screen either: stay inside while invincible.
+            if self.player.rect.top < 0:
+                self.player.y = 0.0
+                self.player.vy = 0.0
+                self.player.rect.y = 0
+            elif self.player.rect.bottom > HEIGHT:
+                self.player.y = float(HEIGHT - self.player.rect.height)
+                self.player.vy = 0.0
+                self.player.rect.y = round(self.player.y)
+        else:
+            if self.ghost_exiting:
+                # Effect just ended: stay safe from barriers until fully clear of them.
+                if not self.spawner.hits_player(self.player.rect):
+                    self.ghost_exiting = False
+                barrier_hit = False
+            else:
+                barrier_hit = self.spawner.hits_player(self.player.rect)
+
+            if self.player.hits_bounds() or barrier_hit:
+                self.play_sound("hit")
+                self.end_run()
 
     def check_checkpoint(self):
         """Fires once per milestone (also after a bonus jump in score)."""
@@ -444,10 +478,23 @@ class Game:
             self.screen.blit(image, (popup["x"], popup["y"]))
 
     # ---------- Drawing ----------
+    def draw_ghost_aura(self):
+        """Soft yellow shimmer around the see-through Cloak."""
+        pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() * 0.012)
+        radius = round(34 + pulse * 5)
+        aura = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+        c = radius + 2
+        pygame.draw.circle(aura, (255, 215, 40, 30), (c, c), radius)
+        pygame.draw.circle(aura, (255, 230, 90, 110), (c, c), radius, 2)
+        self.screen.blit(aura, aura.get_rect(center=self.player.rect.center))
+
     def draw_world(self):
         self.bg_manager.draw(self.screen)
         self.spawner.draw(self.screen)
+        self.player.alpha = self.ghost.alpha
         self.player.draw(self.screen)
+        if self.ghost.active:
+            self.draw_ghost_aura()
         self.draw_popups()
         self.draw_checkpoint_banner()
 
@@ -496,6 +543,12 @@ class Game:
             self.draw_text(
                 f"TIME STONE: {self.power_up.time_left:.1f}s",
                 20, 110, color=gold
+            )
+
+        if self.ghost.active:
+            self.draw_text(
+                f"GHOST: {self.ghost.time_left:.1f}s",
+                20, 170, color=(255, 215, 40)
             )
 
         # Survival timer.
@@ -577,6 +630,10 @@ class Game:
             ),
             (
                 f"Time Stone active: {self.power_up.active}",
+                (195, 175, 215)
+            ),
+            (
+                f"Ghost active: {self.ghost.active}",
                 (195, 175, 215)
             ),
             (

@@ -2,6 +2,7 @@ import random
 from barrier import Barrier
 from time_stone import TimeStone
 from bonus_orb import BonusOrb
+from ghost_orb import GhostOrb
 from settings import *
 
 
@@ -18,6 +19,7 @@ class BarrierSpawner:
 
         self.stone = TimeStone()
         self.bonus = BonusOrb()
+        self.ghost = GhostOrb()
         self.next_spawn_distance = self.random_horizontal_gap()
 
     def random_horizontal_gap(self):
@@ -32,6 +34,7 @@ class BarrierSpawner:
 
         self.stone.active = False
         self.bonus.active = False
+        self.ghost.active = False
         self.next_spawn_distance = self.random_horizontal_gap()
 
     def active_barriers(self):
@@ -65,6 +68,14 @@ class BarrierSpawner:
                     self.bonus.spawn(
                         WIDTH + self.next_spawn_distance * 3 // 4
                     )
+                # Yellow Ghost Orb: also 3/4 of the way, but never together with a red orb
+                elif (
+                    not self.ghost.active
+                    and random.random() < GHOST_CHANCE
+                ):
+                    self.ghost.spawn(
+                        WIDTH + self.next_spawn_distance * 3 // 4
+                    )
                 return
 
     def update(self, dt, speed, gap):
@@ -84,6 +95,7 @@ class BarrierSpawner:
 
         self.stone.update(dt, speed)
         self.bonus.update(dt, speed)
+        self.ghost.update(dt, speed)
 
     def hits_player(self, player_rect):
         for barrier in self.pool:
@@ -100,6 +112,12 @@ class BarrierSpawner:
     def bonus_collected(self, player_rect):
         if self.bonus.collected(player_rect):
             self.bonus.active = False
+            return True
+        return False
+
+    def ghost_collected(self, player_rect):
+        if self.ghost.collected(player_rect):
+            self.ghost.active = False
             return True
         return False
 
@@ -121,3 +139,4 @@ class BarrierSpawner:
 
         self.stone.draw(screen)
         self.bonus.draw(screen)
+        self.ghost.draw(screen)

@@ -37,3 +37,11 @@ TRAIL_INTERVAL = 1 / 60  # one trail sample every 1/60 second, on any system
 BONUS_RADIUS = 15             # size of the red Bonus Orb
 BONUS_CHANCE = 0.20           # chance that a new barrier brings a Bonus Orb (20%)
 BONUS_POINTS = 5              # extra score for collecting one
+
+GHOST_RADIUS = 15             # size of the yellow Ghost Orb
+GHOST_CHANCE = 0.12           # chance that a new barrier brings a Ghost Orb (12%)
+GHOST_DURATION = 5.0          # seconds of invisibility + invincibility
+GHOST_WARNING_TIME = 1.0      # the cloak flickers during the last second
+GHOST_ALPHA = 70              # cloak opacity while invisible (0 = fully invisible, 255 = normal)
+GHOST_COLOR = (255, 215, 40)  # yellow
+GHOST_EDGE = (255, 240, 150)  # light outline

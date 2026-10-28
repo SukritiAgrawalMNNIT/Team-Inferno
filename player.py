@@ -7,6 +7,7 @@ class Player:
     def __init__(self):
         self.rect = pygame.Rect(0, 0, *PLAYER_SIZE)
         self.trail_positions = []
+        self.alpha = 255          # 255 = normal, lower = see-through (Ghost Orb)
         self.reset()
 
     def reset(self):
@@ -15,6 +16,7 @@ class Player:
         self.vy = 0.0
         self.time = 0.0
         self.trail_positions.clear()
+        self.alpha = 255
 
     def thrust(self):
         self.vy = THRUST
@@ -69,7 +71,8 @@ class Player:
                 points
             )
 
-        screen.blit(trail_surface, (0, 0))
+        if self.alpha >= 255:
+            screen.blit(trail_surface, (0, 0))
 
         # --------------------------------------------------
         # 2. Flared, fluttering cloak (wider toward the tail)
@@ -244,6 +247,8 @@ class Player:
         )
 
         surf = pygame.transform.rotate(surf, angle)
+        if self.alpha < 255:
+            surf.set_alpha(self.alpha)
 
         screen.blit(
             surf,
